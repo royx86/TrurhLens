@@ -37,6 +37,8 @@ env/
 *.sqlite
 *.sqlite3
 data/
+!frontend/src/data/
+!frontend/src/data/*.js
 
 # Testing & Cache
 .pytest_cache/
