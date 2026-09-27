@@ -71,7 +71,61 @@ async def init_db() -> None:
     try:
         async with _active_engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
+            # Ensure model metadata is loaded before create_all
+            import app.db.models  # noqa: F401
             await conn.run_sync(Base.metadata.create_all)
+
+            # Auto-migrate any missing columns on PostgreSQL if table pre-existed
+            target_str = str(_target_url)
+            if "postgresql" in target_str or "postgres" in target_str:
+                await conn.execute(
+                    text(
+                        """
+                        DO $$
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_name = 'users' AND column_name = 'hashed_password'
+                            ) THEN
+                                IF EXISTS (
+                                    SELECT 1 FROM information_schema.columns 
+                                    WHERE table_name = 'users' AND column_name = 'password'
+                                ) THEN
+                                    ALTER TABLE users RENAME COLUMN password TO hashed_password;
+                                ELSIF EXISTS (
+                                    SELECT 1 FROM information_schema.columns 
+                                    WHERE table_name = 'users' AND column_name = 'password_hash'
+                                ) THEN
+                                    ALTER TABLE users RENAME COLUMN password_hash TO hashed_password;
+                                ELSE
+                                    ALTER TABLE users ADD COLUMN hashed_password VARCHAR(255) DEFAULT '' NOT NULL;
+                                END IF;
+                            END IF;
+
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_name = 'users' AND column_name = 'name'
+                            ) THEN
+                                ALTER TABLE users ADD COLUMN name VARCHAR(120) DEFAULT '' NOT NULL;
+                            END IF;
+
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_name = 'users' AND column_name = 'email'
+                            ) THEN
+                                ALTER TABLE users ADD COLUMN email VARCHAR(255) DEFAULT '' NOT NULL;
+                            END IF;
+
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_name = 'users' AND column_name = 'created_at'
+                            ) THEN
+                                ALTER TABLE users ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL;
+                            END IF;
+                        END $$;
+                        """
+                    )
+                )
         logger.info("Successfully connected to primary PostgreSQL database: %s", settings.database_url)
     except Exception as exc:
         logger.warning(
@@ -88,6 +142,7 @@ async def init_db() -> None:
             expire_on_commit=False,
         )
         async with _active_engine.begin() as conn:
+            import app.db.models  # noqa: F401
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Initialized fallback local SQLite database: %s", fallback_url)
 
