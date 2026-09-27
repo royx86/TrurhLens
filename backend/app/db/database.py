@@ -83,6 +83,20 @@ async def init_db() -> None:
                         """
                         DO $$
                         BEGIN
+                            -- 1. Ensure auto-incrementing sequence for id
+                            CREATE SEQUENCE IF NOT EXISTS users_id_seq;
+                            ALTER TABLE users ALTER COLUMN id SET DEFAULT nextval('users_id_seq');
+                            ALTER SEQUENCE users_id_seq OWNED BY users.id;
+                            PERFORM setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 0) + 1, false);
+
+                            -- 2. Ensure id is primary key
+                            IF NOT EXISTS (
+                                SELECT 1 FROM pg_constraint WHERE conrelid = 'users'::regclass AND contype = 'p'
+                            ) THEN
+                                ALTER TABLE users ADD PRIMARY KEY (id);
+                            END IF;
+
+                            -- 3. Ensure hashed_password exists
                             IF NOT EXISTS (
                                 SELECT 1 FROM information_schema.columns 
                                 WHERE table_name = 'users' AND column_name = 'hashed_password'
@@ -102,6 +116,7 @@ async def init_db() -> None:
                                 END IF;
                             END IF;
 
+                            -- 4. Ensure name exists
                             IF NOT EXISTS (
                                 SELECT 1 FROM information_schema.columns 
                                 WHERE table_name = 'users' AND column_name = 'name'
@@ -109,6 +124,7 @@ async def init_db() -> None:
                                 ALTER TABLE users ADD COLUMN name VARCHAR(120) DEFAULT '' NOT NULL;
                             END IF;
 
+                            -- 5. Ensure email exists
                             IF NOT EXISTS (
                                 SELECT 1 FROM information_schema.columns 
                                 WHERE table_name = 'users' AND column_name = 'email'
@@ -116,11 +132,14 @@ async def init_db() -> None:
                                 ALTER TABLE users ADD COLUMN email VARCHAR(255) DEFAULT '' NOT NULL;
                             END IF;
 
+                            -- 6. Ensure created_at exists and has default
                             IF NOT EXISTS (
                                 SELECT 1 FROM information_schema.columns 
                                 WHERE table_name = 'users' AND column_name = 'created_at'
                             ) THEN
                                 ALTER TABLE users ADD COLUMN created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL;
+                            ELSE
+                                ALTER TABLE users ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;
                             END IF;
                         END $$;
                         """

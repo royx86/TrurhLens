@@ -13,8 +13,9 @@ Public API surface:
 from contextlib import asynccontextmanager
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.auth import router as auth_router
@@ -47,16 +48,30 @@ app = FastAPI(
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
+cors_origins_list = (
+    list(settings.cors_origins)
+    if isinstance(settings.cors_origins, (list, tuple))
+    else [str(settings.cors_origins)]
+)
+if settings.frontend_url and settings.frontend_url.strip():
+    cors_origins_list.append(settings.frontend_url.strip().rstrip("/"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        *settings.cors_origins,
-        *([settings.frontend_url.rstrip("/")] if settings.frontend_url else []),
-    ],
+    allow_origins=cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled server exception: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {exc}"},
+    )
 
 # ── Primary public routes ─────────────────────────────────────────────────────
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
