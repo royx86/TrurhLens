@@ -110,9 +110,17 @@ APIFY_API_TOKEN=<your-apify-token>
 APIFY_INSTAGRAM_ACTOR=apify/instagram-scraper
 APIFY_FACEBOOK_ACTOR=apify/facebook-posts-scraper
 CORS_ORIGINS=["https://<your-frontend-domain>"]
+FRONTEND_URL=https://<your-frontend-domain>
 ```
 
-The backend accepts Railway's `postgres://`, `postgresql://`, and `postgresql+asyncpg://` URL forms. Database tables are created during application startup. Railway supplies `PORT` automatically; the Docker image uses it and falls back to port `8000` for local runs.
+The frontend service must also define this build-time variable before deploying:
+
+```ini
+VITE_API_URL=https://<your-backend-domain>/api
+VITE_USE_MOCK_API=false
+```
+
+The backend accepts Railway's `postgres://`, `postgresql://`, and `postgresql+asyncpg://` URL forms. Database tables are created during application startup. Railway supplies `PORT` automatically; the Docker image uses it and falls back to port `8000` for local runs. `FRONTEND_URL` must contain only the frontend origin, without `/api`; `VITE_API_URL` must contain the backend origin plus `/api`.
 
 After deployment, verify `https://<backend-domain>/health` returns a JSON response with `"status": "ok"`. Set the frontend's `VITE_API_URL` to `https://<backend-domain>/api` and redeploy the frontend.
 

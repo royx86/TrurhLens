@@ -10,7 +10,11 @@ Model configuration environment variables:
   GROQ_REASONING_MODEL – Reasoning model        (default: openai/gpt-oss-120b)
 """
 
+import json
 from pathlib import Path
+from typing import Any
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
@@ -21,6 +25,7 @@ class Settings(BaseSettings):
         env_file=_ENV_FILE,
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # ── Apify ────────────────────────────────────────────────────────────────
@@ -67,7 +72,8 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 1440  # 24 hours
 
     # ── CORS ─────────────────────────────────────────────────────────────────
-    cors_origins: list[str] = [
+    frontend_url: str = ""
+    cors_origins: list[str] | str = [
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:3000",
@@ -75,6 +81,35 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5174",
         "http://127.0.0.1:3000",
     ]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Any) -> list[str]:
+        default_origins = [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
+            "http://127.0.0.1:3000",
+        ]
+        if v is None:
+            return default_origins
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return default_origins
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if str(item).strip()]
+                except Exception:
+                    pass
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        if isinstance(v, (list, tuple)):
+            return [str(item).strip() for item in v if str(item).strip()]
+        return default_origins
 
     # ── App meta ─────────────────────────────────────────────────────────────
     app_name: str = "TruthLens Backend"
