@@ -34,7 +34,7 @@ RUN printf '%s\n' \
     '    root /app/frontend/dist;' \
     '' \
     '    location /api/ {' \
-    '        proxy_pass http://127.0.0.1:8000;' \
+    '        proxy_pass http://127.0.0.1:8001;' \
     '        proxy_set_header Host $host;' \
     '        proxy_set_header X-Real-IP $remote_addr;' \
     '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' \
@@ -42,17 +42,17 @@ RUN printf '%s\n' \
     '    }' \
     '' \
     '    location = /health {' \
-    '        proxy_pass http://127.0.0.1:8000/health;' \
+    '        proxy_pass http://127.0.0.1:8001/health;' \
     '        proxy_set_header Host $host;' \
     '    }' \
     '' \
     '    location /docs {' \
-    '        proxy_pass http://127.0.0.1:8000;' \
+    '        proxy_pass http://127.0.0.1:8001;' \
     '        proxy_set_header Host $host;' \
     '    }' \
     '' \
     '    location /openapi.json {' \
-    '        proxy_pass http://127.0.0.1:8000;' \
+    '        proxy_pass http://127.0.0.1:8001;' \
     '        proxy_set_header Host $host;' \
     '    }' \
     '' \
@@ -64,4 +64,4 @@ RUN printf '%s\n' \
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "nginx_port=${PORT:-8080}; sed -i \"s/listen 8080/listen ${nginx_port}/\" /etc/nginx/sites-available/default; uvicorn app.main:app --host 127.0.0.1 --port 8000 & exec nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "nginx_port=${PORT:-8080}; sed -i \"s/listen 8080/listen ${nginx_port}/\" /etc/nginx/sites-available/default; uvicorn app.main:app --host 127.0.0.1 --port 8001 & exec nginx -g 'daemon off;'"]
