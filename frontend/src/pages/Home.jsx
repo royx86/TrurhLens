@@ -28,6 +28,9 @@ export function Home() {
       // Save to local storage history
       saveAnalysisToHistory(normalized, rawData);
 
+      // Reset loading before navigating so returning users see a clean page
+      setLoading(false);
+
       // Navigate to /results passing the normalized data and raw response
       navigate('/results', {
         state: {

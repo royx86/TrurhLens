@@ -33,16 +33,21 @@ def _resolve_db_url(url: str) -> str:
     return url
 
 
+def _create_engine(url: str) -> AsyncEngine:
+    """Create an async engine with appropriate kwargs for the target database."""
+    kwargs: dict = {"echo": False}
+    # pool_size / max_overflow / pool_pre_ping are not supported by SQLite
+    if "sqlite" not in url:
+        kwargs["pool_pre_ping"] = True
+        kwargs["pool_size"] = 5
+        kwargs["max_overflow"] = 10
+    return create_async_engine(url, **kwargs)
+
+
 # Resolve configured URL (PostgreSQL by default from settings.database_url)
 _target_url = _resolve_db_url(settings.database_url)
 
-_active_engine: AsyncEngine = create_async_engine(
-    _target_url,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-)
+_active_engine: AsyncEngine = _create_engine(_target_url)
 
 _active_session_maker = async_sessionmaker(
     bind=_active_engine,
@@ -154,7 +159,7 @@ async def init_db() -> None:
             exc,
         )
         fallback_url = "sqlite+aiosqlite:///./truthlens.db"
-        _active_engine = create_async_engine(fallback_url, echo=False)
+        _active_engine = _create_engine(fallback_url)
         _active_session_maker = async_sessionmaker(
             bind=_active_engine,
             class_=AsyncSession,

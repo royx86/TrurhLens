@@ -67,7 +67,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/truthlens"
 
     # ── JWT / Security ───────────────────────────────────────────────────────
-    jwt_secret_key: str = "truthlens-super-secret-jwt-key-2026-production"
+    # IMPORTANT: Always set JWT_SECRET_KEY in your .env before deploying!
+    # Generate one with: python -c "import secrets; print(secrets.token_hex(32))"
+    jwt_secret_key: str = "change-me-set-a-strong-secret-in-env"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 1440  # 24 hours
 
