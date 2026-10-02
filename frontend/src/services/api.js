@@ -5,7 +5,8 @@ import { mockAnalysisData } from '../data/mockAnalysis';
  */
 
 // Normalized base URL without trailing slash
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/+$/, '');
+const defaultApiUrl = import.meta.env.DEV ? 'http://localhost:8000/api' : '/api';
+const API_BASE = (import.meta.env.VITE_API_URL || defaultApiUrl).replace(/\/+$/, '');
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 export class ApiError extends Error {

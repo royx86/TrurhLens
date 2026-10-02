@@ -12,10 +12,12 @@ Public API surface:
 
 from contextlib import asynccontextmanager
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.auth import router as auth_router
@@ -91,6 +93,23 @@ if settings.debug_routes_enabled:
 async def health_check() -> dict:
     """Simple health check endpoint."""
     return {"status": "ok", "service": "truthlens-backend", "version": settings.app_version}
+
+
+# In the combined image the frontend is copied to /app/frontend/dist. The
+# second candidate keeps the route usable when running from the repository.
+frontend_dir = Path("/app/frontend/dist")
+if not frontend_dir.is_dir():
+    frontend_dir = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+if frontend_dir.is_dir():
+    app.mount("/assets", StaticFiles(directory=frontend_dir / "assets"), name="frontend-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend(full_path: str):
+        requested_file = (frontend_dir / full_path).resolve()
+        if frontend_dir.resolve() in requested_file.parents and requested_file.is_file():
+            return FileResponse(requested_file)
+        return FileResponse(frontend_dir / "index.html")
 
 
 logger.info(
